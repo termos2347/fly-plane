@@ -11,12 +11,8 @@ fly plane/
 │   │   ├── ServoManager.h
 
 │   │   └── ServoManager.cpp
-
 │   ├── Communication/
-
 │   │   ├── ESPNowManager.h
-
 │   │   └── ESPNowManager.cpp
-
 │   └── main.cpp
 
