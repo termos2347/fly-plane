@@ -1,3 +1,4 @@
+// приемник
 #include "Core/Types.h"
 #include "Actuators/ServoManager.h"
 #include "Communication/ESPNowManager.h"
