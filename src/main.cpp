@@ -1,62 +1,138 @@
-// приемник
-#include <esp_now.h>
-#include <WiFi.h>
+#include "Core/Types.h"
+#include "Actuators/ServoManager.h"
+#include "Communication/ESPNowManager.h"
 
-// Структура данных для управления
-struct ControlData {
-  int16_t throttle;
-  int16_t rudder;
-  int16_t elevator;
-  int16_t ailerons;
-  bool buttonPressed;
-};
+ServoManager servoManager;
+// Используем singleton вместо прямого экземпляра
+ESPNowManager& espNow = ESPNowManager::getInstance();
 
-void printMacAddress() {
-  Serial.println("=== ТЕСТ ПРИЕМНИКА ===");
-  Serial.print("MAC: ");
-  Serial.println(WiFi.macAddress());
-  Serial.println("=====================");
+void onControlDataReceived(const ControlData& data) {
+    static unsigned long lastReceiveTime = 0;
+    unsigned long currentTime = millis();
+    
+    // Вывод информации о полученных данных (не чаще 1 раза в секунду)
+    static unsigned long lastPrint = 0;
+    if (currentTime - lastPrint > 1000) {
+        Serial.printf("📥 Получены данные: X=%4d, Y=%4d, BTN=%d\n", 
+                     data.xAxis, data.yAxis, data.buttonPressed);
+        lastPrint = currentTime;
+    }
+    
+    // Обновляем время последнего получения данных
+    lastReceiveTime = currentTime;
+    
+    // Передаем данные сервоприводам
+    servoManager.update(data);
+    
+    // Индикация получения данных (быстрое мигание)
+    digitalWrite(2, HIGH);
+    delay(10);
+    digitalWrite(2, LOW);
 }
 
-void OnDataRecv(const uint8_t *mac, const uint8_t *data, int len) {
-  Serial.println("✅ Данные получены!");
-  
-  ControlData receivedData;
-  memcpy(&receivedData, data, sizeof(receivedData));
-  
-  Serial.print("От: ");
-  for (int i = 0; i < 6; i++) {
-    Serial.print(mac[i], HEX);
-    if (i < 5) Serial.print(":");
-  }
-  Serial.println();
-  
-  Serial.printf("Данные: Газ=%d, Руль=%d, Высота=%d, Элероны=%d, Кнопка=%d\n",
-                receivedData.throttle,
-                receivedData.rudder,
-                receivedData.elevator,
-                receivedData.ailerons,
-                receivedData.buttonPressed);
+void printDeviceInfo() {
+  Serial.println("✈️ ===== ИНФОРМАЦИЯ ПРИЕМНИКА =====");
+  Serial.print("MAC адрес: ");
+  Serial.println(WiFi.macAddress());
+  Serial.print("Chip ID: 0x");
+  Serial.println(ESP.getEfuseMac(), HEX);
+  Serial.print("Частота CPU: ");
+  Serial.print(ESP.getCpuFreqMHz());
+  Serial.println(" MHz");
+  Serial.print("Flash размер: ");
+  Serial.print(ESP.getFlashChipSize() / (1024 * 1024));
+  Serial.println(" MB");
+  Serial.print("Свободная память: ");
+  Serial.print(ESP.getFreeHeap() / 1024);
+  Serial.println(" KB");
+  Serial.println("===================================");
+}
+
+void printPinConfiguration() {
+  Serial.println("🔌 === КОНФИГУРАЦИЯ ПИНОВ ===");
+  Serial.println("Сервоприводы:");
+  Serial.println("  Y ось (влево-вправо):");
+  Serial.println("    - Серво 0: GPIO 12");
+  Serial.println("    - Серво 1: GPIO 27");
+  Serial.println("  X ось (вперед-назад):");
+  Serial.println("    - Серво 2: GPIO 13");
+  Serial.println("    - Серво 3: GPIO 14");
+  Serial.println("Индикация:");
+  Serial.println("    - LED: GPIO 2");
+  Serial.println("==============================");
 }
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("Запуск приемника...");
+  delay(1000);
   
-  printMacAddress();
+  Serial.println("✈️ Запуск приемника управления самолетом...");
   
-  WiFi.mode(WIFI_STA);
-
-  if (esp_now_init() != ESP_OK) {
-    Serial.println("❌ Ошибка инициализации ESP-NOW");
-    return;
+  // Вывод подробной информации об устройстве
+  printDeviceInfo();
+  
+  // Вывод конфигурации пинов
+  printPinConfiguration();
+  
+  // Настройка LED для индикации
+  pinMode(2, OUTPUT);
+  digitalWrite(2, LOW);
+  
+  // Инициализация компонентов
+  Serial.println("🔧 Инициализация компонентов...");
+  servoManager.begin();
+  espNow.begin();
+  espNow.registerCallback(onControlDataReceived);
+  
+  // Калибровка сервоприводов
+  Serial.println("🎯 Калибровка сервоприводов...");
+  servoManager.calibrate();
+  
+  // Индикация готовности
+  Serial.println("💡 Индикация готовности...");
+  for(int i = 0; i < 5; i++) {
+    digitalWrite(2, HIGH);
+    delay(100);
+    digitalWrite(2, LOW);
+    delay(100);
   }
-
-  esp_now_register_recv_cb(OnDataRecv);
-  Serial.println("✅ Приемник готов к тестированию");
+  
+  Serial.println("🚀 Приемник готов к работе");
+  Serial.println("📡 Ожидание данных от передатчика...");
+  Serial.println("💡 Светодиод будет мигать при получении данных");
+  
+  // Вывод MAC адреса для удобства копирования
+  Serial.println("");
+  Serial.println("=== ДЛЯ НАСТРОЙКИ ПЕРЕДАТЧИКА ===");
+  Serial.print("MAC_ADDRESS = ");
+  Serial.println(WiFi.macAddress());
+  Serial.println("Скопируйте этот MAC в код передатчика");
+  Serial.println("==================================");
+  Serial.println("");
 }
 
 void loop() {
-  delay(1000);
-  Serial.println("⏳ Ожидание данных...");
+  // Основная логика обработки в callback функции
+  
+  // Медленное мигание в режиме ожидания
+  static unsigned long lastBlink = 0;
+  static bool waitingForData = true;
+  
+  if (waitingForData) {
+    if (millis() - lastBlink > 2000) {
+      digitalWrite(2, !digitalRead(2));
+      lastBlink = millis();
+      
+      // Если долго нет данных, выводим сообщение
+      static unsigned long lastMessage = 0;
+      if (millis() - lastMessage > 10000) {
+        Serial.println("⏳ Ожидание данных от передатчика...");
+        Serial.print("MAC для подключения: ");
+        Serial.println(WiFi.macAddress());
+        lastMessage = millis();
+      }
+    }
+  }
+  
+  delay(100);
 }
