@@ -12,10 +12,10 @@ void ESPNowManager::begin() {
         return;
     }
     
-    esp_now_register_recv_cb(onDataReceived);
-    
-    // Сохраняем указатель на экземпляр для статической функции
+    // Сохраняем указатель на экземпляр ДО регистрации callback
     espNowInstance = this;
+    
+    esp_now_register_recv_cb(onDataReceived);
     
     // Вывод MAC адреса для спаривания
     Serial.print("📡 MAC приемника: ");
@@ -50,31 +50,15 @@ void ESPNowManager::onDataReceived(const uint8_t* mac, const uint8_t* data, int 
     }
     
     // Вызов callback функции через экземпляр
-    if (espNowInstance && espNowInstance->dataCallback != nullptr) {
+    if (espNowInstance != nullptr && espNowInstance->dataCallback != nullptr) {
         espNowInstance->dataCallback(receivedData);
     }
     
-    // Диагностика
+    // Диагностика (реже, чтобы не засорять консоль)
     static unsigned long lastPrint = 0;
-    if (millis() - lastPrint > 500) {
-        Serial.printf("📥 X: %4d, Y: %4d\n", receivedData.xAxis, receivedData.yAxis);
+    if (millis() - lastPrint > 1000) {
+        Serial.printf("📥 Данные: X=%4d, Y=%4d, BTN=%d\n", 
+                     receivedData.xAxis, receivedData.yAxis, receivedData.buttonPressed);
         lastPrint = millis();
     }
-}
-
-bool ESPNowManager::validateCRC(const ControlData& data) {
-    // Та же логика, что и в передатчике
-    uint16_t calculatedCRC = 0;
-    const uint8_t* bytes = (const uint8_t*)&data;
-    
-    for(size_t i = 0; i < sizeof(ControlData) - sizeof(uint16_t); i++) {
-        calculatedCRC += bytes[i];
-    }
-    
-    return calculatedCRC == data.crc;
-}
-
-void ESPNowManager::sendDiagnostic() {
-    // Можно добавить отправку диагностических данных
-    Serial.println("📊 Диагностика ESP-NOW");
 }
