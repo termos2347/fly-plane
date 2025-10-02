@@ -18,9 +18,9 @@ private:
         uint16_t maxPulse;
     };
     
-    ServoConfig servos[4];
+    ServoConfig servos[8]; // Теперь 8 сервоприводов
     
-    void applyMixer(const ControlData& data, int16_t& xOutput, int16_t& yOutput);
+    void applyMixer(const ControlData& data, int16_t outputs[8]);
     int mapToPulse(int16_t value, bool reverse);
     
     // Инициализация конфигурации сервоприводов

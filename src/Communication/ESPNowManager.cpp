@@ -30,7 +30,7 @@ void ESPNowManager::registerCallback(DataReceivedCallback callback) {
 
 void ESPNowManager::onDataReceived(const uint8_t* mac, const uint8_t* data, int len) {
     if (len != sizeof(ControlData)) {
-        Serial.println("❌ Неверный размер пакета");
+        Serial.printf("❌ Неверный размер пакета: %d (ожидалось %d)\n", len, sizeof(ControlData));
         return;
     }
     
@@ -57,8 +57,7 @@ void ESPNowManager::onDataReceived(const uint8_t* mac, const uint8_t* data, int 
     // Диагностика (реже, чтобы не засорять консоль)
     static unsigned long lastPrint = 0;
     if (millis() - lastPrint > 1000) {
-        Serial.printf("📥 Данные: X=%4d, Y=%4d, BTN=%d\n", 
-                     receivedData.xAxis, receivedData.yAxis, receivedData.buttonPressed);
+        Serial.printf("📥 Данные получены корректно (CRC: %04X)\n", receivedData.crc);
         lastPrint = millis();
     }
 }

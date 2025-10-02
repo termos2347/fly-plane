@@ -14,8 +14,12 @@ void onControlDataReceived(const ControlData& data) {
     // Вывод информации о полученных данных (не чаще 1 раза в секунду)
     static unsigned long lastPrint = 0;
     if (currentTime - lastPrint > 1000) {
-        Serial.printf("📥 Получены данные: X=%4d, Y=%4d, BTN=%d\n", 
-                     data.xAxis, data.yAxis, data.buttonPressed);
+        Serial.printf("📥 Джойстик1: X=%4d, Y=%4d, BTN1=%d\n", 
+                     data.xAxis1, data.yAxis1, data.button1);
+        Serial.printf("📥 Джойстик2: X=%4d, Y=%4d, BTN2=%d\n", 
+                     data.xAxis2, data.yAxis2, data.button2);
+        Serial.printf("🔄 Доп.кнопки: 0x%02X, CRC: %04X\n", 
+                     data.buttons, data.crc);
         lastPrint = currentTime;
     }
     
@@ -51,13 +55,20 @@ void printDeviceInfo() {
 
 void printPinConfiguration() {
   Serial.println("🔌 === КОНФИГУРАЦИЯ ПИНОВ ===");
-  Serial.println("Сервоприводы:");
+  Serial.println("Сервоприводы для Джойстика 1:");
   Serial.println("  Y ось (влево-вправо):");
   Serial.println("    - Серво 0: GPIO 12");
   Serial.println("    - Серво 1: GPIO 27");
   Serial.println("  X ось (вперед-назад):");
   Serial.println("    - Серво 2: GPIO 13");
   Serial.println("    - Серво 3: GPIO 14");
+  Serial.println("Сервоприводы для Джойстика 2:");
+  Serial.println("  Y ось (влево-вправо):");
+  Serial.println("    - Серво 4: GPIO 15");
+  Serial.println("    - Серво 5: GPIO 16");
+  Serial.println("  X ось (вперед-назад):");
+  Serial.println("    - Серво 6: GPIO 17");
+  Serial.println("    - Серво 7: GPIO 18");
   Serial.println("Индикация:");
   Serial.println("    - LED: GPIO 2");
   Serial.println("==============================");
@@ -67,7 +78,7 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
   
-  Serial.println("✈️ Запуск приемника управления самолетом...");
+  Serial.println("✈️ Запуск приемника управления с двумя джойстиками...");
   
   // Вывод подробной информации об устройстве
   printDeviceInfo();
